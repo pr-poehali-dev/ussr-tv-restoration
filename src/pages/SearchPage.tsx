@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Input } from '@/components/ui/input';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -12,6 +12,8 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 
+const API_URL = 'https://functions.poehali.dev/8ec26cbe-7190-4b05-9b22-5ca8cdfb7d99';
+
 interface Program {
   id: number;
   title: string;
@@ -19,133 +21,75 @@ interface Program {
   category: string;
   description: string;
   channel: string;
-  image: string;
+  image_url: string;
+  video_url: string;
+  time: string;
+  views: number;
 }
-
-const allPrograms: Program[] = [
-  {
-    id: 1,
-    title: 'Время',
-    year: '1968-1991',
-    category: 'Новости',
-    description: 'Главная информационная программа страны',
-    channel: 'Первая программа',
-    image: 'https://images.unsplash.com/photo-1495020689067-958852a7765e?w=300',
-  },
-  {
-    id: 2,
-    title: 'Спокойной ночи, малыши!',
-    year: '1964-н.в.',
-    category: 'Детское',
-    description: 'Легендарная детская передача перед сном',
-    channel: 'Первая программа',
-    image: 'https://images.unsplash.com/photo-1587628604439-c5c3e90d4d7e?w=300',
-  },
-  {
-    id: 3,
-    title: 'КВН',
-    year: '1961-1971',
-    category: 'Развлечение',
-    description: 'Клуб весёлых и находчивых',
-    channel: 'Первая программа',
-    image: 'https://images.unsplash.com/photo-1516450360452-9312f5e86fc7?w=300',
-  },
-  {
-    id: 4,
-    title: 'Голубой огонёк',
-    year: '1962-1991',
-    category: 'Музыка',
-    description: 'Музыкально-развлекательная программа',
-    channel: 'Первая программа',
-    image: 'https://images.unsplash.com/photo-1470225620780-dba8ba36b745?w=300',
-  },
-  {
-    id: 5,
-    title: 'Очевидное - невероятное',
-    year: '1973-1991',
-    category: 'Наука',
-    description: 'Научно-популярная программа',
-    channel: 'Первая программа',
-    image: 'https://images.unsplash.com/photo-1532094349884-543bc11b234d?w=300',
-  },
-  {
-    id: 6,
-    title: 'В мире животных',
-    year: '1968-н.в.',
-    category: 'Природа',
-    description: 'Передача о природе и животных',
-    channel: 'Вторая программа',
-    image: 'https://images.unsplash.com/photo-1564760055775-d63b17a55c44?w=300',
-  },
-  {
-    id: 7,
-    title: 'Здоровье',
-    year: '1968-н.в.',
-    category: 'Медицина',
-    description: 'Передача о здоровье и медицине',
-    channel: 'Первая программа',
-    image: 'https://images.unsplash.com/photo-1505751172876-fa1923c5c528?w=300',
-  },
-  {
-    id: 8,
-    title: 'Что? Где? Когда?',
-    year: '1975-н.в.',
-    category: 'Интеллект',
-    description: 'Интеллектуальная игра',
-    channel: 'Первая программа',
-    image: 'https://images.unsplash.com/photo-1606326608606-aa0b62935f2b?w=300',
-  },
-  {
-    id: 9,
-    title: 'Служу Советскому Союзу',
-    year: '1975-1991',
-    category: 'Военное',
-    description: 'Передача о Советской Армии',
-    channel: 'Первая программа',
-    image: 'https://images.unsplash.com/photo-1451187580459-43490279c0fa?w=300',
-  },
-  {
-    id: 10,
-    title: 'Клуб кинопутешествий',
-    year: '1960-1991',
-    category: 'Путешествия',
-    description: 'Передача о путешествиях по СССР и миру',
-    channel: 'Первая программа',
-    image: 'https://images.unsplash.com/photo-1488646953014-85cb44e25828?w=300',
-  },
-  {
-    id: 11,
-    title: 'Утренняя почта',
-    year: '1976-1991',
-    category: 'Развлечение',
-    description: 'Воскресная развлекательная программа',
-    channel: 'Первая программа',
-    image: 'https://images.unsplash.com/photo-1557672172-298e090bd0f1?w=300',
-  },
-  {
-    id: 12,
-    title: 'АБВГДейка',
-    year: '1975-н.в.',
-    category: 'Детское',
-    description: 'Телевизионная игра для школьников',
-    channel: 'Первая программа',
-    image: 'https://images.unsplash.com/photo-1503676260728-1c00da094a0b?w=300',
-  },
-];
 
 const categories = ['Все', 'Новости', 'Детское', 'Развлечение', 'Музыка', 'Наука', 'Природа', 'Интеллект'];
 
 export default function SearchPage() {
+  const [allPrograms, setAllPrograms] = useState<Program[]>([]);
+  const [filteredPrograms, setFilteredPrograms] = useState<Program[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('Все');
+  const [loading, setLoading] = useState(true);
 
-  const filteredPrograms = allPrograms.filter((program) => {
-    const matchesSearch =
-      program.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      program.description.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesCategory = selectedCategory === 'Все' || program.category === selectedCategory;
-    return matchesSearch && matchesCategory;
-  });
+  useEffect(() => {
+    fetchPrograms();
+  }, []);
+
+  useEffect(() => {
+    filterPrograms();
+  }, [searchQuery, selectedCategory, allPrograms]);
+
+  const fetchPrograms = async () => {
+    try {
+      const response = await fetch(API_URL);
+      const data = await response.json();
+      setAllPrograms(data);
+      setFilteredPrograms(data);
+    } catch (error) {
+      console.error('Error fetching programs:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const filterPrograms = () => {
+    let filtered = allPrograms;
+
+    if (selectedCategory !== 'Все') {
+      filtered = filtered.filter(p => p.category === selectedCategory);
+    }
+
+    if (searchQuery) {
+      const query = searchQuery.toLowerCase();
+      filtered = filtered.filter(p => 
+        p.title.toLowerCase().includes(query) ||
+        p.description.toLowerCase().includes(query)
+      );
+    }
+
+    setFilteredPrograms(filtered);
+  };
+
+  const handleReset = () => {
+    setSearchQuery('');
+    setSelectedCategory('Все');
+  };
+
+  if (loading) {
+    return (
+      <div className="container mx-auto px-4 py-8 flex items-center justify-center min-h-[60vh]">
+        <div className="text-center">
+          <Icon name="Search" size={64} className="text-secondary mx-auto mb-4 animate-pulse" />
+          <p className="text-lg text-muted-foreground">Загрузка архива...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="container mx-auto px-4 py-8">
@@ -190,10 +134,7 @@ export default function SearchPage() {
           {(searchQuery || selectedCategory !== 'Все') && (
             <Button
               variant="outline"
-              onClick={() => {
-                setSearchQuery('');
-                setSelectedCategory('Все');
-              }}
+              onClick={handleReset}
               className="h-12"
             >
               <Icon name="X" size={20} className="mr-2" />
@@ -218,7 +159,7 @@ export default function SearchPage() {
           >
             <div className="aspect-video relative overflow-hidden">
               <img
-                src={program.image}
+                src={program.image_url}
                 alt={program.title}
                 className="w-full h-full object-cover hover:scale-110 transition-transform duration-500"
               />
@@ -241,10 +182,10 @@ export default function SearchPage() {
                   <Icon name="Radio" size={12} className="mr-1" />
                   {program.channel}
                 </Badge>
-                <Button size="sm" variant="ghost" className="hover:bg-secondary hover:text-primary">
-                  <Icon name="Play" size={16} className="mr-1" />
-                  Смотреть
-                </Button>
+                <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                  <Icon name="Eye" size={12} />
+                  <span>{program.views}</span>
+                </div>
               </div>
             </div>
           </Card>
@@ -259,10 +200,7 @@ export default function SearchPage() {
             Попробуйте изменить параметры поиска или выбрать другую категорию
           </p>
           <Button
-            onClick={() => {
-              setSearchQuery('');
-              setSelectedCategory('Все');
-            }}
+            onClick={handleReset}
             className="bg-secondary hover:bg-secondary/90 text-primary"
           >
             <Icon name="RotateCcw" size={20} className="mr-2" />

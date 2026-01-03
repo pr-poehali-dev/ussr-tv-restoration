@@ -1,47 +1,79 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import Icon from '@/components/ui/icon';
 import { Badge } from '@/components/ui/badge';
 
-const channels = [
-  {
-    id: 1,
-    name: 'Первая программа',
-    currentShow: 'Время',
-    description: 'Главная информационная программа страны',
-    videoUrl: 'https://www.youtube.com/embed/qTAzOgjAoco',
-    time: '21:00',
-  },
-  {
-    id: 2,
-    name: 'Вторая программа',
-    currentShow: 'Спокойной ночи, малыши!',
-    description: 'Легендарная детская передача',
-    videoUrl: 'https://www.youtube.com/embed/iQdDRrcAOjA',
-    time: '20:45',
-  },
-  {
-    id: 3,
-    name: 'Музыкальный канал',
-    currentShow: 'Голубой огонёк',
-    description: 'Музыкально-развлекательная программа',
-    videoUrl: 'https://www.youtube.com/embed/dQw4w9WgXcQ',
-    time: '22:00',
-  },
-  {
-    id: 4,
-    name: 'Образовательный канал',
-    currentShow: 'Очевидное - невероятное',
-    description: 'Научно-популярная программа',
-    videoUrl: 'https://www.youtube.com/embed/jNQXAC9IVRw',
-    time: '19:30',
-  },
-];
+const API_URL = 'https://functions.poehali.dev/8ec26cbe-7190-4b05-9b22-5ca8cdfb7d99';
+
+interface Program {
+  id: number;
+  title: string;
+  year: string;
+  category: string;
+  description: string;
+  channel: string;
+  image_url: string;
+  video_url: string;
+  time: string;
+  views: number;
+}
 
 export default function HomePage() {
-  const [selectedChannel, setSelectedChannel] = useState(channels[0]);
+  const [programs, setPrograms] = useState<Program[]>([]);
+  const [selectedProgram, setSelectedProgram] = useState<Program | null>(null);
   const [isPlaying, setIsPlaying] = useState(true);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetchPrograms();
+  }, []);
+
+  const fetchPrograms = async () => {
+    try {
+      const response = await fetch(API_URL);
+      const data = await response.json();
+      setPrograms(data.slice(0, 4));
+      if (data.length > 0) {
+        setSelectedProgram(data[0]);
+      }
+    } catch (error) {
+      console.error('Error fetching programs:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const incrementViews = async (programId: number) => {
+    try {
+      await fetch(API_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ program_id: programId })
+      });
+    } catch (error) {
+      console.error('Error incrementing views:', error);
+    }
+  };
+
+  const handleProgramSelect = (program: Program) => {
+    setSelectedProgram(program);
+    setIsPlaying(true);
+    incrementViews(program.id);
+  };
+
+  if (loading) {
+    return (
+      <div className="container mx-auto px-4 py-8 flex items-center justify-center min-h-[60vh]">
+        <div className="text-center">
+          <Icon name="Tv" size={64} className="text-secondary mx-auto mb-4 animate-pulse" />
+          <p className="text-lg text-muted-foreground">Загрузка программ...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!selectedProgram) return null;
 
   return (
     <div className="container mx-auto px-4 py-8">
@@ -60,8 +92,9 @@ export default function HomePage() {
           <Card className="tv-frame overflow-hidden bg-black p-4">
             <div className="aspect-video relative">
               <iframe
-                src={`${selectedChannel.videoUrl}?autoplay=${isPlaying ? '1' : '0'}&mute=0&controls=1&loop=1`}
-                title={selectedChannel.currentShow}
+                key={selectedProgram.id}
+                src={`${selectedProgram.video_url}?autoplay=${isPlaying ? '1' : '0'}&mute=0&controls=1&loop=1`}
+                title={selectedProgram.title}
                 className="w-full h-full rounded"
                 allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
                 allowFullScreen
@@ -80,13 +113,20 @@ export default function HomePage() {
             </div>
             <div className="mt-4 p-4 bg-primary/10 rounded">
               <div className="flex items-center justify-between mb-2">
-                <h3 className="text-2xl font-bold text-primary">{selectedChannel.currentShow}</h3>
-                <Badge variant="secondary" className="text-lg px-3 py-1">
-                  <Icon name="Clock" size={16} className="mr-1" />
-                  {selectedChannel.time}
-                </Badge>
+                <h3 className="text-2xl font-bold text-primary">{selectedProgram.title}</h3>
+                <div className="flex items-center gap-2">
+                  <Badge variant="outline" className="text-sm">
+                    <Icon name="Eye" size={14} className="mr-1" />
+                    {selectedProgram.views}
+                  </Badge>
+                  <Badge variant="secondary" className="text-lg px-3 py-1">
+                    <Icon name="Clock" size={16} className="mr-1" />
+                    {selectedProgram.time}
+                  </Badge>
+                </div>
               </div>
-              <p className="text-muted-foreground">{selectedChannel.description}</p>
+              <p className="text-muted-foreground mb-2">{selectedProgram.description}</p>
+              <Badge className="mt-2">{selectedProgram.category}</Badge>
             </div>
           </Card>
         </div>
@@ -98,26 +138,27 @@ export default function HomePage() {
               Выбрать программу
             </h3>
             <div className="space-y-3">
-              {channels.map((channel) => (
+              {programs.map((program) => (
                 <button
-                  key={channel.id}
-                  onClick={() => {
-                    setSelectedChannel(channel);
-                    setIsPlaying(true);
-                  }}
+                  key={program.id}
+                  onClick={() => handleProgramSelect(program)}
                   className={`w-full text-left p-4 rounded-lg transition-all hover:scale-105 ${
-                    selectedChannel.id === channel.id
+                    selectedProgram?.id === program.id
                       ? 'bg-secondary text-primary shadow-lg'
                       : 'bg-muted hover:bg-muted/80'
                   }`}
                 >
                   <div className="flex items-center justify-between mb-2">
-                    <h4 className="font-bold">{channel.name}</h4>
-                    <Badge variant={selectedChannel.id === channel.id ? 'default' : 'outline'}>
-                      {channel.time}
+                    <h4 className="font-bold">{program.title}</h4>
+                    <Badge variant={selectedProgram?.id === program.id ? 'default' : 'outline'}>
+                      {program.time}
                     </Badge>
                   </div>
-                  <p className="text-sm opacity-80">{channel.currentShow}</p>
+                  <p className="text-sm opacity-80 mb-1">{program.channel}</p>
+                  <div className="flex items-center gap-2 text-xs opacity-70">
+                    <Icon name="Eye" size={12} />
+                    <span>{program.views} просмотров</span>
+                  </div>
                 </button>
               ))}
             </div>
@@ -126,29 +167,15 @@ export default function HomePage() {
           <Card className="p-4 bg-accent text-accent-foreground">
             <div className="flex items-center gap-3 mb-3">
               <Icon name="Star" size={24} />
-              <h3 className="text-lg font-bold">Сегодня в эфире</h3>
+              <h3 className="text-lg font-bold">Популярные программы</h3>
             </div>
             <ul className="space-y-2 text-sm">
-              <li className="flex items-center gap-2">
-                <Icon name="Circle" size={8} className="text-secondary" />
-                <span>19:00 - Новости</span>
-              </li>
-              <li className="flex items-center gap-2">
-                <Icon name="Circle" size={8} className="text-secondary" />
-                <span>19:30 - Очевидное - невероятное</span>
-              </li>
-              <li className="flex items-center gap-2">
-                <Icon name="Circle" size={8} className="text-secondary" />
-                <span>20:45 - Спокойной ночи, малыши!</span>
-              </li>
-              <li className="flex items-center gap-2">
-                <Icon name="Circle" size={8} className="text-secondary" />
-                <span>21:00 - Время</span>
-              </li>
-              <li className="flex items-center gap-2">
-                <Icon name="Circle" size={8} className="text-secondary" />
-                <span>22:00 - Голубой огонёк</span>
-              </li>
+              {programs.slice(0, 4).map((program) => (
+                <li key={program.id} className="flex items-center gap-2">
+                  <Icon name="Circle" size={8} className="text-secondary" />
+                  <span>{program.time} - {program.title}</span>
+                </li>
+              ))}
             </ul>
           </Card>
         </div>
